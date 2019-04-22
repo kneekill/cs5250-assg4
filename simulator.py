@@ -10,8 +10,13 @@ Output files:
     SJF.txt
 '''
 import sys
+from queue import Queue
 
 input_file = 'input.txt'
+
+class PeekableQueue(Queue):
+    def peek(self):
+        return self.queue[0]
 
 class Process:
     last_scheduled_time = 0
@@ -19,9 +24,14 @@ class Process:
         self.id = id
         self.arrive_time = arrive_time
         self.burst_time = burst_time
+        self.remaining_time = burst_time
     #for printing purpose
     def __repr__(self):
         return ('[id %d : arrival_time %d,  burst_time %d]'%(self.id, self.arrive_time, self.burst_time))
+
+#resetting remaining_time
+def cleanup(process):
+    process.remaining_time = process.burst_time
 
 def FCFS_scheduling(process_list):
     #store the (switching time, proccess_id) pair
@@ -41,7 +51,39 @@ def FCFS_scheduling(process_list):
 #Output_1 : Schedule list contains pairs of (time_stamp, proccess_id) indicating the time switching to that proccess_id
 #Output_2 : Average Waiting Time
 def RR_scheduling(process_list, time_quantum ):
-    return (["to be completed, scheduling process_list on round robin policy with time_quantum"], 0.0)
+    ready_q = PeekableQueue()
+    process_q = PeekableQueue()
+    curr_time = 0
+    schedule = []
+    total_waiting_time = 0
+    list(map(process_q.put, process_list))    
+    while not process_q.empty() or not ready_q.empty():
+        if ready_q.empty():
+            curr_process = process_q.get()
+            curr_time = curr_process.arrive_time
+            ready_q.put(curr_process)
+        # checking if any other processes are within tq
+        if(not process_q.empty()):
+            process_q_head = process_q.peek()
+            while(curr_time+time_quantum >= process_q_head.arrive_time and not process_q.empty()):
+                ready_q.put(process_q.get())
+                if(not process_q.empty()):
+                    process_q_head = process_q.peek()
+        curr_process = ready_q.get()
+        if(curr_process.last_scheduled_time > 0):
+            total_waiting_time += curr_time - curr_process.last_scheduled_time
+        else:
+            total_waiting_time += curr_time - curr_process.arrive_time
+        schedule.append((curr_time,curr_process.id))
+        curr_process.last_scheduled_time = curr_time + time_quantum
+        time_spent = min(time_quantum, curr_process.remaining_time)
+        curr_time += time_spent
+        curr_process.remaining_time -= time_spent
+        if(curr_process.remaining_time>0):
+            ready_q.put(curr_process)
+    list(map(cleanup, process_list))
+    return schedule, total_waiting_time/float(len(process_list))
+    # return (["to be completed, scheduling process_list on round robin policy with time_quantum"], 0.0)
 
 def SRTF_scheduling(process_list):
     return (["to be completed, scheduling process_list on SRTF, using process.burst_time to calculate the remaining time of the current process "], 0.0)
