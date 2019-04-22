@@ -11,6 +11,7 @@ Output files:
 '''
 import sys
 from queue import Queue
+from heapq import heappop, heappush
 
 input_file = 'input.txt'
 
@@ -28,6 +29,9 @@ class Process:
     #for printing purpose
     def __repr__(self):
         return ('[id %d : arrival_time %d,  burst_time %d]'%(self.id, self.arrive_time, self.burst_time))
+    
+    def __lt__(self,other):
+        return self.remaining_time < other.remaining_time
 
 #resetting remaining_time
 def cleanup(process):
@@ -63,12 +67,12 @@ def RR_scheduling(process_list, time_quantum ):
             curr_time = curr_process.arrive_time
             ready_q.put(curr_process)
         # checking if any other processes are within tq
-        if(not process_q.empty()):
+        while(not process_q.empty()):
             process_q_head = process_q.peek()
-            while(curr_time+time_quantum >= process_q_head.arrive_time and not process_q.empty()):
+            if(curr_time+time_quantum >= process_q_head.arrive_time):
                 ready_q.put(process_q.get())
-                if(not process_q.empty()):
-                    process_q_head = process_q.peek()
+            else:
+                break
         curr_process = ready_q.get()
         if(curr_process.last_scheduled_time > 0):
             total_waiting_time += curr_time - curr_process.last_scheduled_time
@@ -86,7 +90,36 @@ def RR_scheduling(process_list, time_quantum ):
     # return (["to be completed, scheduling process_list on round robin policy with time_quantum"], 0.0)
 
 def SRTF_scheduling(process_list):
-    return (["to be completed, scheduling process_list on SRTF, using process.burst_time to calculate the remaining time of the current process "], 0.0)
+    curr_time = 0
+    ready_q = []
+    process_q = PeekableQueue()
+    total_waiting_time = 0
+    schedule = []
+    last_scheduled_process = -1
+    list(map(process_q.put, process_list))
+    while ready_q or not process_q.empty():
+        if not ready_q:
+            curr_process = process_q.get()
+            curr_time = curr_process.arrive_time
+            heappush(ready_q,curr_process)
+        while(not process_q.empty()):
+            process_q_head = process_q.peek()
+            if(curr_time >= process_q_head.arrive_time):
+                heappush(ready_q,process_q.get())
+            else:
+                break
+        curr_process = heappop(ready_q)
+        if last_scheduled_process != curr_process.id:
+            schedule.append((curr_time,curr_process.id))
+            last_scheduled_process = curr_process.id
+        curr_time += 1
+        curr_process.remaining_time -= 1
+        if(curr_process.remaining_time>0):
+            heappush(ready_q,curr_process)
+        else:
+            total_waiting_time += curr_time - curr_process.arrive_time - curr_process.burst_time
+    list(map(cleanup, process_list))
+    return (schedule, total_waiting_time/float(len(process_list)))
 
 def SJF_scheduling(process_list, alpha):
     return (["to be completed, scheduling SJF without using information from process.burst_time"],0.0)
