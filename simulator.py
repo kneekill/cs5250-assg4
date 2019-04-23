@@ -80,17 +80,14 @@ def RR_scheduling(process_list, time_quantum ):
             else:
                 break
         curr_process = ready_q.get()
-        if(curr_process.last_scheduled_time > 0):
-            total_waiting_time += curr_time - curr_process.last_scheduled_time
-        else:
-            total_waiting_time += curr_time - curr_process.arrive_time
         schedule.append((curr_time,curr_process.id))
-        curr_process.last_scheduled_time = curr_time + time_quantum
         time_spent = min(time_quantum, curr_process.remaining_time)
         curr_time += time_spent
         curr_process.remaining_time -= time_spent
         if(curr_process.remaining_time>0):
             ready_q.put(curr_process)
+        else:
+            total_waiting_time += curr_time - curr_process.arrive_time - curr_process.burst_time
     list(map(cleanup, process_list))
     return schedule, total_waiting_time/float(len(process_list))
     # return (["to be completed, scheduling process_list on round robin policy with time_quantum"], 0.0)
