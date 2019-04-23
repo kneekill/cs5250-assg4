@@ -66,6 +66,7 @@ def RR_scheduling(process_list, time_quantum ):
     curr_time = 0
     schedule = []
     total_waiting_time = 0
+    last_scheduled_process = -1
     list(map(process_q.put, process_list))    
     while not process_q.empty() or not ready_q.empty():
         if ready_q.empty():
@@ -80,7 +81,9 @@ def RR_scheduling(process_list, time_quantum ):
             else:
                 break
         curr_process = ready_q.get()
-        schedule.append((curr_time,curr_process.id))
+        if last_scheduled_process != curr_process.id:
+            schedule.append((curr_time, curr_process.id))
+            last_scheduled_process = curr_process.id
         time_spent = min(time_quantum, curr_process.remaining_time)
         curr_time += time_spent
         curr_process.remaining_time -= time_spent
@@ -138,6 +141,7 @@ def SJF_scheduling(process_list, alpha):
             n = process.id
         process_q.put(process)
     n += 1
+    last_scheduled_process = -1
     # previous_burst = [0] * n
     expected_burst = [INITIAL_EXPECTED_BURST] * n
     ready_q_ids = []
@@ -166,7 +170,9 @@ def SJF_scheduling(process_list, alpha):
         executing_proc = ready_q[min_ready_q_index]
         process_id = executing_proc.id
         total_waiting_time += curr_time - executing_proc.arrive_time
-        schedule.append((curr_time, process_id))
+        if last_scheduled_process != process_id:
+            schedule.append((curr_time, process_id))
+            last_scheduled_process = process_id
         curr_time += executing_proc.burst_time
         expected_burst[process_id] = get_new_prediction(executing_proc.burst_time,expected_burst[process_id],alpha)
         del ready_q[min_ready_q_index]
