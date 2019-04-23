@@ -14,6 +14,7 @@ from queue import Queue
 from heapq import heappop, heappush
 
 input_file = 'input.txt'
+INITIAL_EXPECTED_BURST = 5
 
 class PeekableQueue(Queue):
     def peek(self):
@@ -31,7 +32,12 @@ class Process:
         return ('[id %d : arrival_time %d,  burst_time %d]'%(self.id, self.arrive_time, self.burst_time))
     
     def __lt__(self,other):
-        return self.remaining_time < other.remaining_time
+        if(self.remaining_time < other.remaining_time):
+            return True
+        elif self.remaining_time == other.remaining_time:
+            return self.arrive_time < other.arrive_time
+        else:
+            return False
 
 #resetting remaining_time
 def cleanup(process):
@@ -121,8 +127,53 @@ def SRTF_scheduling(process_list):
     list(map(cleanup, process_list))
     return (schedule, total_waiting_time/float(len(process_list)))
 
+def get_new_prediction(tn, tau, alpha):
+    return alpha * tn + (1- alpha) * tau
+
 def SJF_scheduling(process_list, alpha):
-    return (["to be completed, scheduling SJF without using information from process.burst_time"],0.0)
+    schedule = []
+    ready_q = []
+    process_q = PeekableQueue()
+    n = 0
+    curr_time = 0
+    for process in process_list:
+        if(process.id > n):
+            n = process.id
+        process_q.put(process)
+    n += 1
+    # previous_burst = [0] * n
+    expected_burst = [INITIAL_EXPECTED_BURST] * n
+    ready_q_ids = []
+    curr_min_expected_burst = sys.maxsize
+    min_ready_q_index = -1
+    total_waiting_time = 0
+    while ready_q or not process_q.empty():
+        if not ready_q:
+            curr_process = process_q.get()
+            if(curr_time < curr_process.arrive_time):
+                curr_time = curr_process.arrive_time
+            ready_q.append(curr_process)
+            ready_q_ids.append(curr_process.id)
+        while(not process_q.empty()):
+            process_q_head = process_q.peek()
+            if(curr_time >= process_q_head.arrive_time):
+                ready_q.append(process_q.get())
+            else:
+                break
+        #getting the lowest minimum expected burst in the ready_q
+        for index, process in enumerate(ready_q):
+            if(expected_burst[process.id] < curr_min_expected_burst):
+                curr_min_expected_burst = expected_burst[process.id]
+                min_ready_q_index = index
+        curr_min_expected_burst = sys.maxsize
+        executing_proc = ready_q[min_ready_q_index]
+        process_id = executing_proc.id
+        total_waiting_time += curr_time - executing_proc.arrive_time
+        schedule.append((curr_time, process_id))
+        curr_time += executing_proc.burst_time
+        expected_burst[process_id] = get_new_prediction(executing_proc.burst_time,expected_burst[process_id],alpha)
+        del ready_q[min_ready_q_index]
+    return (schedule,total_waiting_time/float(len(process_list)))
 
 
 def read_input():
